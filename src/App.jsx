@@ -242,11 +242,7 @@ function App() {
     [erSutureMonthlyValues]
   )
 
-  const filteredRecentLogs = useMemo(
-    () => recentLogs.filter((log) => selectedMonthSet.has(String(log.date || '').slice(0, 7))),
-    [recentLogs, selectedMonthSet]
-  )
-  const recentLogsTop30 = useMemo(() => filteredRecentLogs.slice(0, 30), [filteredRecentLogs])
+  const recentLogsTop30 = useMemo(() => recentLogs.slice(0, 30), [recentLogs])
 
   const dischargeHeaders = useMemo(
     () => [DISCHARGE_HEADER_FIRST, ...selectedMonthKeys.map((month) => month.replace('-', '.')), DISCHARGE_HEADER_LAST],
