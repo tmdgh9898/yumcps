@@ -715,7 +715,13 @@ function App() {
                   </td>
                   <td>{p.total_general || 0}</td>
                   <td>{p.total_local || 0}</td>
-                  <td>{(p.total_mac || 0) + (p.total_bpb || 0) + (p.total_snb || 0) + (p.total_fnb || 0) + (p.total_spinal || 0)}</td>
+                  <td>{
+                    (Number(p.total_mac) || 0) +
+                    (Number(p.total_bpb) || 0) +
+                    (Number(p.total_snb) || 0) +
+                    (Number(p.total_fnb) || 0) +
+                    (Number(p.total_spinal) || 0)
+                  }</td>
                   <td>{p.total_admission || 0}</td>
                   <td>{p.total_discharge || 0}</td>
                 </tr>
