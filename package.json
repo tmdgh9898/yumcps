@@ -30,7 +30,9 @@
     "check:utf8": "node scripts/check-utf8.js",
     "smoke:api": "node scripts/smoke-api.js",
     "deploy:precheck": "npm run check:utf8 && npm run build",
-    "verify:data": "node scripts/verify-data.js"
+    "verify:data": "node scripts/verify-data.js",
+    "upload:bulk:api": "node scripts/bulk-upload-api.js",
+    "verify:prod:api": "node scripts/verify-prod-readiness.js"
   },
   "keywords": [],
   "author": "",
