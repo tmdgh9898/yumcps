@@ -1,4 +1,6 @@
-﻿* text=auto eol=lf
+* text=auto eol=lf
+
+# Source files
 *.js text working-tree-encoding=UTF-8
 *.jsx text working-tree-encoding=UTF-8
 *.ts text working-tree-encoding=UTF-8
@@ -6,3 +8,8 @@
 *.css text working-tree-encoding=UTF-8
 *.html text working-tree-encoding=UTF-8
 *.json text working-tree-encoding=UTF-8
+*.md text working-tree-encoding=UTF-8
+*.yml text working-tree-encoding=UTF-8
+*.yaml text working-tree-encoding=UTF-8
+*.env text working-tree-encoding=UTF-8
+*.ps1 text working-tree-encoding=UTF-8

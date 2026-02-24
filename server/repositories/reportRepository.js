@@ -145,10 +145,16 @@ class ReportRepository {
 
   async getCases(month, professor) {
     return this.db.all(
-      `SELECT date, patient_name, case_name, anesthesia, SUM(count) as total_count
+      `SELECT
+         date,
+         patient_name,
+         case_name,
+         anesthesia,
+         COALESCE(diagnosis_code, 'UNKNOWN') as diagnosis_code,
+         SUM(count) as total_count
        FROM professor_cases
        WHERE date LIKE ? AND professor_name = ?
-       GROUP BY date, patient_name, case_name, anesthesia
+       GROUP BY date, patient_name, case_name, anesthesia, diagnosis_code
        ORDER BY date ASC, patient_name ASC`,
       [`${month}%`, professor]
     );
