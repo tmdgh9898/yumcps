@@ -13,17 +13,21 @@
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "vite": "^6.4.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "pg": "^8.12.0"
   },
   "name": "monthlyreport",
   "version": "1.0.0",
-  "main": "db.js",
+  "main": "server/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server:dev": "node server.js",
+    "import:all": "node scripts/import-all-logs.js",
+    "check:utf8": "node scripts/check-utf8.js"
   },
   "keywords": [],
   "author": "",

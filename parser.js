@@ -1,4 +1,4 @@
-﻿const XLSX = require('xlsx');
+const XLSX = require('xlsx');
 const path = require('path');
 
 const PROFESSORS = ['김용하', '김태곤', '이준호', '김일국', '김성은'];
