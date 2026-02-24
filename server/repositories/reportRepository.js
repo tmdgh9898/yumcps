@@ -4,6 +4,25 @@ function monthExpr(dbType, column = 'date') {
   return dbType === 'postgres' ? `substring(${column} from 1 for 7)` : `substr(${column}, 1, 7)`;
 }
 
+const VALID_DIAGNOSIS_CODES = new Set('ABCDEFGHIJK'.split(''));
+
+function normalizeDiagnosisCode(rawCode) {
+  const text = String(rawCode || '').trim();
+  if (!text) return 'UNKNOWN';
+
+  const upper = text.toUpperCase();
+  if (upper === 'UNKNOWN' || upper === '-') return 'UNKNOWN';
+
+  const leadingMatch = upper.match(/^\s*([A-K])(?:[\s\.\)\]\-:：]|$)/);
+  if (leadingMatch) return leadingMatch[1];
+
+  const anyMatch = upper.match(/(?:^|[\s\(\[])([A-K])(?:[\s\.\)\]\-:：]|$)/);
+  if (anyMatch) return anyMatch[1];
+
+  if (VALID_DIAGNOSIS_CODES.has(upper)) return upper;
+  return upper;
+}
+
 class ReportRepository {
   constructor(db, dbType) {
     this.db = db;
@@ -144,13 +163,13 @@ class ReportRepository {
   }
 
   async getCases(month, professor) {
-    return this.db.all(
+    const rows = await this.db.all(
       `SELECT
          date,
          patient_name,
          case_name,
          anesthesia,
-         COALESCE(diagnosis_code, 'UNKNOWN') as diagnosis_code,
+         diagnosis_code,
          SUM(count) as total_count
        FROM professor_cases
        WHERE date LIKE ? AND professor_name = ?
@@ -158,6 +177,10 @@ class ReportRepository {
        ORDER BY date ASC, patient_name ASC`,
       [`${month}%`, professor]
     );
+    return rows.map((row) => ({
+      ...row,
+      diagnosis_code: normalizeDiagnosisCode(row.diagnosis_code),
+    }));
   }
 
   async getExportData(month) {

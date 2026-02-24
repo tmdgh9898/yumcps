@@ -1,6 +1,16 @@
 const fs = require('fs');
 const { parseDailyLog } = require('../parsers/dailyLogParser');
 
+function normalizeDiagnosisCode(rawCode) {
+  const text = String(rawCode || '').trim().toUpperCase();
+  if (!text || text === 'UNKNOWN' || text === '-') return null;
+
+  const leadingMatch = text.match(/^\s*([A-K])(?:[\s\.\)\]\-:：]|$)/);
+  if (leadingMatch) return leadingMatch[1];
+
+  return /^[A-K]$/.test(text) ? text : null;
+}
+
 async function processUploadedFile(db, file) {
   let filePath = null;
   let transactionStarted = false;
@@ -78,13 +88,21 @@ async function processUploadedFile(db, file) {
     }
 
     for (const c of professorCases) {
+      const diagnosisCode = normalizeDiagnosisCode(c.diagnosisCode);
       await db.run(
         `INSERT INTO professor_cases (date, professor_name, patient_name, case_name, anesthesia, diagnosis_code, count)
          VALUES (?, ?, ?, ?, ?, ?, 1)
          ON CONFLICT(date, professor_name, patient_name, case_name, anesthesia) DO UPDATE SET
            count = professor_cases.count + 1,
-           diagnosis_code = COALESCE(excluded.diagnosis_code, professor_cases.diagnosis_code)`,
-        [stats.date, c.professor, c.patientName, c.caseName, c.anesthesia, c.diagnosisCode || 'UNKNOWN']
+           diagnosis_code = CASE
+             WHEN excluded.diagnosis_code IS NULL
+               OR TRIM(excluded.diagnosis_code) = ''
+               OR UPPER(TRIM(excluded.diagnosis_code)) = 'UNKNOWN'
+               OR TRIM(excluded.diagnosis_code) = '-'
+             THEN professor_cases.diagnosis_code
+             ELSE excluded.diagnosis_code
+           END`,
+        [stats.date, c.professor, c.patientName, c.caseName, c.anesthesia, diagnosisCode]
       );
     }
 

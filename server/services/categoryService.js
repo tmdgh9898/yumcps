@@ -61,7 +61,7 @@ async function getCategoryScore(db, dbType, startMonth, endMonth, multiplier) {
       SUM(pc.count) AS total_count
     FROM professor_cases pc
     JOIN diagnosis_category_map dcm
-      ON UPPER(COALESCE(pc.diagnosis_code, '')) = dcm.diagnosis_code
+      ON UPPER(SUBSTR(TRIM(COALESCE(pc.diagnosis_code, '')), 1, 1)) = dcm.diagnosis_code
     WHERE ${m} IN (${placeholders})
     GROUP BY ${m}, dcm.category_key`,
     months
@@ -72,7 +72,12 @@ async function getCategoryScore(db, dbType, startMonth, endMonth, multiplier) {
       ${m2} AS month,
       SUM(count) AS total_cases,
       SUM(CASE
-        WHEN diagnosis_code IS NULL OR diagnosis_code = '' OR UPPER(diagnosis_code) = 'UNKNOWN' THEN count
+        WHEN diagnosis_code IS NULL
+          OR TRIM(diagnosis_code) = ''
+          OR UPPER(TRIM(diagnosis_code)) = 'UNKNOWN'
+          OR TRIM(diagnosis_code) = '-'
+          OR UPPER(SUBSTR(TRIM(diagnosis_code), 1, 1)) NOT IN ('A','B','C','D','E','F','G','H','I','J','K')
+        THEN count
         ELSE 0
       END) AS missing_or_unknown_cases
     FROM professor_cases

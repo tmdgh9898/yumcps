@@ -4,11 +4,25 @@ import './index.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
-const MONTHS = [
-  '2025-09', '2025-10', '2025-11', '2025-12',
-  '2026-01', '2026-02', '2026-03', '2026-04',
-  '2026-05', '2026-06', '2026-07', '2026-08',
-]
+function buildMonthRange(startMonth, endMonth) {
+  const [startYear, startMon] = startMonth.split('-').map(Number)
+  const [endYear, endMon] = endMonth.split('-').map(Number)
+  const months = []
+
+  let year = startYear
+  let mon = startMon
+  while (year < endYear || (year === endYear && mon <= endMon)) {
+    months.push(`${year}-${String(mon).padStart(2, '0')}`)
+    mon += 1
+    if (mon > 12) {
+      mon = 1
+      year += 1
+    }
+  }
+  return months
+}
+
+const MONTHS = buildMonthRange('2025-09', '2027-02')
 const SUBTITLE_TEXT = '\uC6D4\uAC04\uBCF4\uACE0 \uC790\uB3D9\uD654 \uBC0F \uC2EC\uC0AC \uC810\uC218 \uD655\uC778'
 const YEAR_LABELS = ['1\uB144\uCC28', '2\uB144\uCC28', '3\uB144\uCC28', '4\uB144\uCC28']
 const SCORE_PREFIX = '\uCD1D \uC804\uACF5\uC758\uC218'
