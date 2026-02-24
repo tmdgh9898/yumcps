@@ -27,7 +27,9 @@
     "preview": "vite preview",
     "server:dev": "node server.js",
     "import:all": "node scripts/import-all-logs.js",
-    "check:utf8": "node scripts/check-utf8.js"
+    "check:utf8": "node scripts/check-utf8.js",
+    "smoke:api": "node scripts/smoke-api.js",
+    "deploy:precheck": "npm run check:utf8 && npm run build"
   },
   "keywords": [],
   "author": "",
