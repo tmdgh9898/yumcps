@@ -29,7 +29,8 @@
     "import:all": "node scripts/import-all-logs.js",
     "check:utf8": "node scripts/check-utf8.js",
     "smoke:api": "node scripts/smoke-api.js",
-    "deploy:precheck": "npm run check:utf8 && npm run build"
+    "deploy:precheck": "npm run check:utf8 && npm run build",
+    "verify:data": "node scripts/verify-data.js"
   },
   "keywords": [],
   "author": "",
