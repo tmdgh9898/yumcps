@@ -1683,6 +1683,21 @@ tbody tr:hover {
   color: var(--text-primary);
 }
 
+/* 월별 추이 차트 */
+.metric-chart-wrap {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.metric-chart-caption {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-align: right;
+  margin-top: 0.2rem;
+  margin-bottom: 0.5rem;
+}
+
 /* KPI 요약 카드 */
 .kpi-summary-row {
   display: grid;

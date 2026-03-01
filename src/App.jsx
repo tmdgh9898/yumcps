@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts'
 import api from './api/client'
 import './index.css'
 
@@ -1610,6 +1611,64 @@ function App() {
                     : ER_SCORE_BUTTON_LABEL}
               </button>
             </div>
+
+            {/* 월별 추이 막대 차트 */}
+            {(() => {
+              const chartData = selectedMonthKeys.map((month, idx) => ({
+                month: formatMonthLabel(month, true),
+                value: metricView === 'discharge'
+                  ? dischargeMonthTotals[idx] || 0
+                  : metricView === 'outpatient'
+                    ? outpatientMonthTotals[idx] || 0
+                    : erSutureMonthlyValues[idx] || 0,
+              }))
+              const unit = metricView === 'er' ? '건' : '명'
+              const lastIdx = chartData.length - 1
+              return (
+                <div className="metric-chart-wrap">
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis
+                        dataKey="month"
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        cursor={{ fill: 'var(--table-row-hover)' }}
+                        contentStyle={{
+                          background: 'var(--card-bg-solid)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '10px',
+                          fontSize: '0.82rem',
+                          color: 'var(--text-primary)',
+                        }}
+                        formatter={(val) => [`${val.toLocaleString()}${unit}`, '']}
+                        labelStyle={{ fontWeight: 700, marginBottom: '2px' }}
+                      />
+                      <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={56}>
+                        {chartData.map((_, idx) => (
+                          <Cell
+                            key={`cell-${idx}`}
+                            fill={idx === lastIdx ? 'var(--primary)' : 'var(--accent)'}
+                            opacity={idx === lastIdx ? 1 : 0.55}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="metric-chart-caption">
+                    {'▌ 짙은 색 = 최근 월 / 연한 색 = 이전 월'}
+                  </p>
+                </div>
+              )
+            })()}
 
             {metricView === 'discharge' && (
               <div className="discharge-fixed-table-wrap">
