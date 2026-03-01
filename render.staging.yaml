@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: yumcps-api-stg
+    env: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm run start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: CORS_ORIGINS
+        value: https://yumcps-web-stg.vercel.app,http://localhost:3000
+      - key: PGSSL
+        value: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: yumcps-db-stg
+          property: connectionString
+
+databases:
+  - name: yumcps-db-stg
+    plan: starter
+    databaseName: yumcps_stg
+    user: yumcps_stg

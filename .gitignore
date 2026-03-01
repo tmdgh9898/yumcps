@@ -1,0 +1,45 @@
+﻿node_modules/
+dist/
+uploads/
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+coverage/
+.tmp/
+tmp/
+*.sqlite
+*.sqlite3
+
+# raw duty logs are source-of-truth but too large for code repo backup
+2025 당직일지/
+2026 당직일지/
+2025 당직일지.zip
+2026 당직일지.zip
+
+# ad-hoc scripts and artifacts
+check_*.js
+debug_*.js
+verify_*.js
+rebuild_*.js
+inspect_*.js
+compare_*.js
+cleanup.js
+bulk_import*.js
+apply_official.js
+list_tables.js
+migrate*.js
+import_er_history.js
+
+# sample files
+*.xlsx
+
+reports/
