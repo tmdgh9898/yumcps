@@ -1887,9 +1887,8 @@ function App() {
                         <td>{row.professor}</td>
                         {row.months.map((value, idx) => {
                           const month = selectedMonthKeys[idx]
-                          const hasManual = manualBaseData.discharge?.[row.professor]?.[month] !== undefined
                           return (
-                            <td key={`${row.professor}-${idx}`} className={hasManual ? 'cell-manual-saved' : ''}>
+                            <td key={`${row.professor}-${idx}`}>
                               {metricsEditMode ? (
                                 <input
                                   type="number"
@@ -1898,9 +1897,7 @@ function App() {
                                   value={metricsDraft[row.professor]?.[month] ?? value}
                                   onChange={(e) => updateDraftValue(row.professor, month, e.target.value)}
                                 />
-                              ) : (
-                                <>{value}{hasManual && <span className="manual-mark" title="수동 저장값">🔒</span>}</>
-                              )}
+                              ) : value}
                             </td>
                           )
                         })}
@@ -1935,9 +1932,8 @@ function App() {
                         <td>{row.label}</td>
                         {row.months.map((value, idx) => {
                           const month = selectedMonthKeys[idx]
-                          const hasManual = manualBaseData.outpatient?.[row.label]?.[month] !== undefined
                           return (
-                            <td key={`${row.label}-${idx}`} className={hasManual ? 'cell-manual-saved' : ''}>
+                            <td key={`${row.label}-${idx}`}>
                               {metricsEditMode ? (
                                 <input
                                   type="number"
@@ -1946,9 +1942,7 @@ function App() {
                                   value={metricsDraft[row.label]?.[month] ?? value}
                                   onChange={(e) => updateDraftValue(row.label, month, e.target.value)}
                                 />
-                              ) : (
-                                <>{value}{hasManual && <span className="manual-mark" title="수동 저장값">🔒</span>}</>
-                              )}
+                              ) : value}
                             </td>
                           )
                         })}
@@ -1984,9 +1978,8 @@ function App() {
                       <td>ER Suture</td>
                       {erSutureMonthlyValues.map((value, idx) => {
                         const month = selectedMonthKeys[idx]
-                        const hasManual = manualBaseData.er[month] !== undefined
                         return (
-                          <td key={`ers-value-${month}`} className={hasManual ? 'cell-manual-saved' : ''}>
+                          <td key={`ers-value-${month}`}>
                             {metricsEditMode ? (
                               <input
                                 type="number"
@@ -1995,9 +1988,7 @@ function App() {
                                 value={metricsDraft['ER']?.[month] ?? value}
                                 onChange={(e) => updateDraftValue('ER', month, e.target.value)}
                               />
-                            ) : (
-                              <>{value}{hasManual && <span className="manual-mark" title="수동 저장값">🔒</span>}</>
-                            )}
+                            ) : value}
                           </td>
                         )
                       })}
