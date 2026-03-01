@@ -253,8 +253,24 @@ function App() {
   const [fileLogPage, setFileLogPage] = useState(1)
   const [fileLogState, setFileLogState] = useState({ loading: false, error: '', items: [], total: 0, totalPages: 1 })
   const [metricView, setMetricView] = useState('discharge')
-  // 수동 기본 데이터: { discharge: { professor: { month: value } }, outpatient: { label: { month: value } }, er: { month: value } }
-  const [manualBaseData, setManualBaseData] = useState({ discharge: {}, outpatient: {}, er: {} })
+  // 수동 기본 데이터: 첫 렌더링부터 localStorage를 동기 읽어 즉시 반영 (lazy initializer)
+  const [manualBaseData, setManualBaseData] = useState(() => {
+    try {
+      const raw = window.localStorage.getItem(MANUAL_BASE_DATA_KEY)
+      if (!raw) return { discharge: {}, outpatient: {}, er: {} }
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') {
+        return {
+          discharge: parsed.discharge || {},
+          outpatient: parsed.outpatient || {},
+          er: parsed.er || {},
+        }
+      }
+    } catch {
+      // localStorage 접근 실패 시 빈 객체로 시작
+    }
+    return { discharge: {}, outpatient: {}, er: {} }
+  })
   // 메트릭 수정 모드 상태
   const [metricsEditMode, setMetricsEditMode] = useState(false)
   // 수정 중인 임시값 (저장 전 draft)
@@ -350,24 +366,6 @@ function App() {
       // Ignore storage write failures.
     }
   }, [metricSyncByMonth])
-
-  // 수동 기본 데이터 로드 (페이지 최초 마운트 시)
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(MANUAL_BASE_DATA_KEY)
-      if (!raw) return
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object') {
-        setManualBaseData({
-          discharge: parsed.discharge || {},
-          outpatient: parsed.outpatient || {},
-          er: parsed.er || {},
-        })
-      }
-    } catch {
-      // localStorage 접근 실패 시 무시
-    }
-  }, [])
 
   // 수동 기본 데이터 변경 시 localStorage에 저장
   useEffect(() => {
