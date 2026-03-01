@@ -1,17 +1,44 @@
 <!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="YUMC PS 월간보고 자동화 및 심사 점수 확인 대시보드" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <title>YUMC PS 월간보고</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="YUMC PS 월간보고 자동화 및 심사 점수 확인 대시보드" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <title>YUMC PS 월간보고</title>
+  <!-- 
+      렌더링 전 테마 즉시 적용 스크립트 (FOUC 방지)
+      React 실행 전에 동기적으로 localStorage의 테마를 읽어 적용합니다.
+      이렇게 해야 페이지가 그려지는 첫 순간부터 올바른 테마가 적용됩니다.
+    -->
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('yumcps.theme.v1');
+        if (stored === 'light' || stored === 'dark') {
+          // 사용자가 저장한 테마가 있으면 그것을 사용
+          document.documentElement.setAttribute('data-theme', stored);
+        } else {
+          // 저장된 값이 없으면 시스템 설정을 따름
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+        }
+      } catch (e) {
+        // localStorage 접근 실패 시 기본값(다크) 유지
+      }
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>
