@@ -82,6 +82,8 @@ const SCORE_INPUT_STORAGE_KEY = 'yumcps.scoreInputByMonth.v1'
 const DISCHARGE_SCORE_INPUT_STORAGE_KEY = 'yumcps.dischargeScoreInputByMonth.v1'
 const ER_SCORE_INPUT_STORAGE_KEY = 'yumcps.erScoreInputByMonth.v1'
 const METRIC_SYNC_STORAGE_KEY = 'yumcps.metricSyncByMonth.v1'
+// 수동 수정된 기본 데이터를 저장하는 키 (API/하드코딩보다 우선 적용)
+const MANUAL_BASE_DATA_KEY = 'yumcps.manualBaseData.v1'
 const SCORE_BASE_ROWS_OUTPATIENT = [
   { id: 1, label: '\u2460 2500\uBA85 \uBBF8\uB9CC', min: 0, max: 2499, score: 0 },
   { id: 2, label: '\u2461 2500~3500\uBA85', min: 2500, max: 3500, score: 2 },
@@ -251,6 +253,12 @@ function App() {
   const [fileLogPage, setFileLogPage] = useState(1)
   const [fileLogState, setFileLogState] = useState({ loading: false, error: '', items: [], total: 0, totalPages: 1 })
   const [metricView, setMetricView] = useState('discharge')
+  // 수동 기본 데이터: { discharge: { professor: { month: value } }, outpatient: { label: { month: value } }, er: { month: value } }
+  const [manualBaseData, setManualBaseData] = useState({ discharge: {}, outpatient: {}, er: {} })
+  // 메트릭 수정 모드 상태
+  const [metricsEditMode, setMetricsEditMode] = useState(false)
+  // 수정 중인 임시값 (저장 전 draft)
+  const [metricsDraft, setMetricsDraft] = useState({})
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -343,6 +351,33 @@ function App() {
     }
   }, [metricSyncByMonth])
 
+  // 수동 기본 데이터 로드 (페이지 최초 마운트 시)
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(MANUAL_BASE_DATA_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') {
+        setManualBaseData({
+          discharge: parsed.discharge || {},
+          outpatient: parsed.outpatient || {},
+          er: parsed.er || {},
+        })
+      }
+    } catch {
+      // localStorage 접근 실패 시 무시
+    }
+  }, [])
+
+  // 수동 기본 데이터 변경 시 localStorage에 저장
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MANUAL_BASE_DATA_KEY, JSON.stringify(manualBaseData))
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [manualBaseData])
+
   const monthOptions = useMemo(() => MONTHS.map((m) => ({ key: m, label: m.replace('-', '.') })), [])
   const fixedMonthIndexes = useMemo(() => Object.fromEntries(DISCHARGE_FIXED_MONTH_KEYS.map((month, idx) => [month, idx])), [])
   const rangeStartIndex = MONTHS.indexOf(rangeStartMonth)
@@ -397,12 +432,16 @@ function App() {
 
   const erSutureBaseMonthlyValues = useMemo(
     () => selectedMonthKeys.map((monthKey) => {
+      // 1. 수동 저장값 우선
+      if (manualBaseData.er[monthKey] !== undefined) return manualBaseData.er[monthKey]
+      // 2. 하드코딩 고정값
       if (Object.prototype.hasOwnProperty.call(ER_SUTURE_FIXED_BY_MONTH, monthKey)) {
         return ER_SUTURE_FIXED_BY_MONTH[monthKey]
       }
+      // 3. API 데이터
       return Number(reportsByMonth[monthKey]?.outpatient?.total_er_suture) || 0
     }),
-    [selectedMonthKeys, reportsByMonth]
+    [selectedMonthKeys, reportsByMonth, manualBaseData.er]
   )
   const erSutureMonthlyValues = useMemo(
     () => selectedMonthKeys.map((monthKey, idx) => {
@@ -426,16 +465,21 @@ function App() {
   const dischargeBaseRows = useMemo(() => {
     return DISCHARGE_FIXED_ROWS.map((fixedRow) => {
       const months = selectedMonthKeys.map((monthKey) => {
+        // 1. 수동 저장값 우선
+        const manual = manualBaseData.discharge?.[fixedRow.professor]?.[monthKey]
+        if (manual !== undefined) return manual
+        // 2. 하드코딩 고정값
         if (Object.prototype.hasOwnProperty.call(fixedMonthIndexes, monthKey)) {
           return fixedRow.months[fixedMonthIndexes[monthKey]] || 0
         }
+        // 3. API 데이터
         const apiRow = (reportsByMonth[monthKey]?.professors || []).find((item) => item.professor_name === fixedRow.professor)
         return Number(apiRow?.total_discharge) || 0
       })
       const total = months.reduce((sum, value) => sum + value, 0)
       return { professor: fixedRow.professor, months, total }
     })
-  }, [selectedMonthKeys, fixedMonthIndexes, reportsByMonth])
+  }, [selectedMonthKeys, fixedMonthIndexes, reportsByMonth, manualBaseData.discharge])
   const dischargeBaseMonthTotals = useMemo(
     () => selectedMonthKeys.map((_, idx) => dischargeBaseRows.reduce((sum, row) => sum + (row.months[idx] || 0), 0)),
     [selectedMonthKeys, dischargeBaseRows]
@@ -486,9 +530,14 @@ function App() {
   const outpatientBaseRows = useMemo(() => {
     return OUTPATIENT_FIXED_ROWS.map((fixedRow) => {
       const months = selectedMonthKeys.map((monthKey) => {
+        // 1. 수동 저장값 우선
+        const manual = manualBaseData.outpatient?.[fixedRow.label]?.[monthKey]
+        if (manual !== undefined) return manual
+        // 2. 하드코딩 고정값
         if (Object.prototype.hasOwnProperty.call(fixedMonthIndexes, monthKey)) {
           return fixedRow.months[fixedMonthIndexes[monthKey]] || 0
         }
+        // 3. API 데이터
         const outpatient = reportsByMonth[monthKey]?.outpatient || EMPTY_OUTPATIENT
         if (fixedRow.label === '\uCD08\uC9C4') return Number(outpatient.total_first) || 0
         return Number(outpatient.total_re) || 0
@@ -499,7 +548,7 @@ function App() {
         total: months.reduce((sum, value) => sum + value, 0),
       }
     })
-  }, [selectedMonthKeys, fixedMonthIndexes, reportsByMonth])
+  }, [selectedMonthKeys, fixedMonthIndexes, reportsByMonth, manualBaseData.outpatient])
   const outpatientBaseMonthTotals = useMemo(
     () => selectedMonthKeys.map((_, idx) => outpatientBaseRows.reduce((sum, row) => sum + (row.months[idx] || 0), 0)),
     [selectedMonthKeys, outpatientBaseRows]
@@ -1290,6 +1339,106 @@ function App() {
     }
   }
 
+  // ─── 수정 모드 핸들러 ───────────────────────────────────────
+  // 수정 모드 시작: 현재 표시된 값으로 draft 초기화
+  function startMetricsEdit() {
+    const draft = {}
+    if (metricView === 'discharge') {
+      dischargeRows.forEach((row) => {
+        draft[row.professor] = {}
+        selectedMonthKeys.forEach((month, idx) => {
+          draft[row.professor][month] = row.months[idx] ?? 0
+        })
+      })
+    } else if (metricView === 'outpatient') {
+      outpatientRows.forEach((row) => {
+        draft[row.label] = {}
+        selectedMonthKeys.forEach((month, idx) => {
+          draft[row.label][month] = row.months[idx] ?? 0
+        })
+      })
+    } else {
+      draft['ER'] = {}
+      selectedMonthKeys.forEach((month, idx) => {
+        draft['ER'][month] = erSutureMonthlyValues[idx] ?? 0
+      })
+    }
+    setMetricsDraft(draft)
+    setMetricsEditMode(true)
+  }
+
+  // 수정 모드 저장: draft를 manualBaseData에 병합하고 localStorage에 자동 저장
+  function saveMetricsEdit() {
+    setManualBaseData((prev) => {
+      const next = {
+        discharge: { ...prev.discharge },
+        outpatient: { ...prev.outpatient },
+        er: { ...prev.er },
+      }
+      if (metricView === 'discharge') {
+        Object.entries(metricsDraft).forEach(([professor, months]) => {
+          next.discharge[professor] = { ...(prev.discharge[professor] || {}), ...months }
+        })
+      } else if (metricView === 'outpatient') {
+        Object.entries(metricsDraft).forEach(([label, months]) => {
+          next.outpatient[label] = { ...(prev.outpatient[label] || {}), ...months }
+        })
+      } else {
+        // ER: draft['ER'][month] 구조
+        Object.entries(metricsDraft['ER'] || {}).forEach(([month, value]) => {
+          next.er[month] = value
+        })
+      }
+      return next
+    })
+    setMetricsEditMode(false)
+    setMetricsDraft({})
+  }
+
+  // 수정 취소
+  function cancelMetricsEdit() {
+    setMetricsEditMode(false)
+    setMetricsDraft({})
+  }
+
+  // draft 값 변경 (테이블 셀 입력 시 호출)
+  function updateDraftValue(rowKey, month, rawValue) {
+    const value = Math.max(0, Math.floor(Number(rawValue) || 0))
+    setMetricsDraft((prev) => ({
+      ...prev,
+      [rowKey]: { ...(prev[rowKey] || {}), [month]: value },
+    }))
+  }
+
+  // 특정 탭의 특정 월 수동값 초기화 (API/하드코딩으로 복원)
+  function resetManualMonth(month) {
+    setManualBaseData((prev) => {
+      const next = {
+        discharge: { ...prev.discharge },
+        outpatient: { ...prev.outpatient },
+        er: { ...prev.er },
+      }
+      if (metricView === 'discharge') {
+        Object.keys(next.discharge).forEach((professor) => {
+          const m = { ...next.discharge[professor] }
+          delete m[month]
+          next.discharge[professor] = m
+        })
+      } else if (metricView === 'outpatient') {
+        Object.keys(next.outpatient).forEach((label) => {
+          const m = { ...next.outpatient[label] }
+          delete m[month]
+          next.outpatient[label] = m
+        })
+      } else {
+        const er = { ...next.er }
+        delete er[month]
+        next.er = er
+      }
+      return next
+    })
+  }
+
   return (
     <div className="container">
       <header>
@@ -1603,14 +1752,66 @@ function App() {
                     ? OUTPATIENT_FIXED_TITLE
                     : ER_SUTURE_MONTHLY_TITLE}
               </h2>
-              <button className="btn btn-subtle score-check-btn" onClick={() => openMetricScoreModal(metricView)}>
-                {metricView === 'discharge'
-                  ? DISCHARGE_SCORE_BUTTON_LABEL
-                  : metricView === 'outpatient'
-                    ? OUTPATIENT_SCORE_BUTTON_LABEL
-                    : ER_SCORE_BUTTON_LABEL}
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                {metricsEditMode ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn metrics-edit-save-btn"
+                      onClick={saveMetricsEdit}
+                    >
+                      💾 저장
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-subtle metrics-edit-cancel-btn"
+                      onClick={cancelMetricsEdit}
+                    >
+                      ✕ 취소
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-subtle metrics-edit-btn"
+                    onClick={startMetricsEdit}
+                    title="수치를 수동으로 수정하고 기본값으로 저장합니다"
+                  >
+                    ✏️ 수정
+                  </button>
+                )}
+                <button className="btn btn-subtle score-check-btn" onClick={() => openMetricScoreModal(metricView)}>
+                  {metricView === 'discharge'
+                    ? DISCHARGE_SCORE_BUTTON_LABEL
+                    : metricView === 'outpatient'
+                      ? OUTPATIENT_SCORE_BUTTON_LABEL
+                      : ER_SCORE_BUTTON_LABEL}
+                </button>
+              </div>
             </div>
+
+            {/* 수정 모드 안내 배너 */}
+            {metricsEditMode && (
+              <div className="metrics-edit-banner">
+                <span>✏️ <strong>수정 모드 활성화</strong> — 셀을 직접 수정 후 💾 저장을 누르면 기본값으로 반영됩니다.</span>
+                <button
+                  type="button"
+                  className="metrics-edit-reset-all-btn"
+                  onClick={() => {
+                    // 현재 탭의 수동 데이터 전체 초기화
+                    setManualBaseData((prev) => {
+                      if (metricView === 'discharge') return { ...prev, discharge: {} }
+                      if (metricView === 'outpatient') return { ...prev, outpatient: {} }
+                      return { ...prev, er: {} }
+                    })
+                    cancelMetricsEdit()
+                  }}
+                  title="이 탭의 수동 수정값을 모두 삭제하고 원래 데이터(API/하드코딩)로 복원합니다"
+                >
+                  🔄 전체 초기화
+                </button>
+              </div>
+            )}
 
             {/* 월별 추이 막대 차트 */}
             {(() => {
@@ -1684,9 +1885,25 @@ function App() {
                     {dischargeRows.map((row) => (
                       <tr key={row.professor}>
                         <td>{row.professor}</td>
-                        {row.months.map((value, idx) => (
-                          <td key={`${row.professor}-${idx}`}>{value}</td>
-                        ))}
+                        {row.months.map((value, idx) => {
+                          const month = selectedMonthKeys[idx]
+                          const hasManual = manualBaseData.discharge?.[row.professor]?.[month] !== undefined
+                          return (
+                            <td key={`${row.professor}-${idx}`} className={hasManual ? 'cell-manual-saved' : ''}>
+                              {metricsEditMode ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="metrics-edit-input"
+                                  value={metricsDraft[row.professor]?.[month] ?? value}
+                                  onChange={(e) => updateDraftValue(row.professor, month, e.target.value)}
+                                />
+                              ) : (
+                                <>{value}{hasManual && <span className="manual-mark" title="수동 저장값">🔒</span>}</>
+                              )}
+                            </td>
+                          )
+                        })}
                         <td className="discharge-fixed-col-total">{row.total}</td>
                       </tr>
                     ))}
@@ -1716,9 +1933,25 @@ function App() {
                     {outpatientRows.map((row) => (
                       <tr key={row.label}>
                         <td>{row.label}</td>
-                        {row.months.map((value, idx) => (
-                          <td key={`${row.label}-${idx}`}>{value}</td>
-                        ))}
+                        {row.months.map((value, idx) => {
+                          const month = selectedMonthKeys[idx]
+                          const hasManual = manualBaseData.outpatient?.[row.label]?.[month] !== undefined
+                          return (
+                            <td key={`${row.label}-${idx}`} className={hasManual ? 'cell-manual-saved' : ''}>
+                              {metricsEditMode ? (
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="metrics-edit-input"
+                                  value={metricsDraft[row.label]?.[month] ?? value}
+                                  onChange={(e) => updateDraftValue(row.label, month, e.target.value)}
+                                />
+                              ) : (
+                                <>{value}{hasManual && <span className="manual-mark" title="수동 저장값">🔒</span>}</>
+                              )}
+                            </td>
+                          )
+                        })}
                         <td className="outpatient-fixed-col-total">{row.total}</td>
                       </tr>
                     ))}
@@ -1749,9 +1982,25 @@ function App() {
                   <tbody>
                     <tr>
                       <td>ER Suture</td>
-                      {erSutureMonthlyValues.map((value, idx) => (
-                        <td key={`ers-value-${selectedMonthKeys[idx]}`}>{value}</td>
-                      ))}
+                      {erSutureMonthlyValues.map((value, idx) => {
+                        const month = selectedMonthKeys[idx]
+                        const hasManual = manualBaseData.er[month] !== undefined
+                        return (
+                          <td key={`ers-value-${month}`} className={hasManual ? 'cell-manual-saved' : ''}>
+                            {metricsEditMode ? (
+                              <input
+                                type="number"
+                                min="0"
+                                className="metrics-edit-input"
+                                value={metricsDraft['ER']?.[month] ?? value}
+                                onChange={(e) => updateDraftValue('ER', month, e.target.value)}
+                              />
+                            ) : (
+                              <>{value}{hasManual && <span className="manual-mark" title="수동 저장값">🔒</span>}</>
+                            )}
+                          </td>
+                        )
+                      })}
                       <td className="er-suture-total-cell">{erSutureMonthlyTotal}</td>
                     </tr>
                   </tbody>
