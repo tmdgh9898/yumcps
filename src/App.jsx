@@ -210,6 +210,8 @@ function distributeValuesToTargetTotal(baseValues, targetTotal) {
 
 function App() {
   const fileInputRef = useRef(null)
+  // 메트릭(퇴원/외래/ER) 섹션으로 스크롤하기 위한 ref
+  const metricsRef = useRef(null)
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'dark'
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
@@ -863,7 +865,7 @@ function App() {
 
   useEffect(() => {
     if (!fileLogModalOpen) return
-    fetchFileLogsPage(fileLogPage).catch(() => {})
+    fetchFileLogsPage(fileLogPage).catch(() => { })
   }, [fileLogModalOpen, fileLogPage])
 
   useEffect(() => {
@@ -1349,34 +1351,51 @@ function App() {
       </header>
 
       <div className="kpi-summary-row">
-        <div className="kpi-card">
+        <button
+          type="button"
+          className="kpi-card kpi-card-clickable"
+          onClick={() => {
+            setMetricView('discharge')
+            metricsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+          title="퇴원환자 섹션으로 이동"
+        >
           <span className="kpi-icon">🏥</span>
           <div className="kpi-info">
             <span className="kpi-label">퇴원환자 합계</span>
             <strong className="kpi-value">{dischargeGrandTotal.toLocaleString()}<span className="kpi-unit">명</span></strong>
           </div>
-        </div>
-        <div className="kpi-card">
+        </button>
+        <button
+          type="button"
+          className="kpi-card kpi-card-clickable"
+          onClick={() => {
+            setMetricView('outpatient')
+            metricsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+          title="외래환자 섹션으로 이동"
+        >
           <span className="kpi-icon">🩺</span>
           <div className="kpi-info">
             <span className="kpi-label">외래환자 합계</span>
             <strong className="kpi-value">{outpatientGrandTotal.toLocaleString()}<span className="kpi-unit">명</span></strong>
           </div>
-        </div>
-        <div className="kpi-card">
+        </button>
+        <button
+          type="button"
+          className="kpi-card kpi-card-clickable"
+          onClick={() => {
+            setMetricView('er')
+            metricsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+          title="ER Suture 섹션으로 이동"
+        >
           <span className="kpi-icon">🚑</span>
           <div className="kpi-info">
             <span className="kpi-label">ER Suture</span>
             <strong className="kpi-value">{erSutureMonthlyTotal.toLocaleString()}<span className="kpi-unit">건</span></strong>
           </div>
-        </div>
-        <div className="kpi-card">
-          <span className="kpi-icon">👨‍⚕️</span>
-          <div className="kpi-info">
-            <span className="kpi-label">전공의 수</span>
-            <strong className="kpi-value">{residentTotal}<span className="kpi-unit">명</span></strong>
-          </div>
-        </div>
+        </button>
       </div>
 
       <div className="top-half-row">
@@ -1480,45 +1499,45 @@ function App() {
             </div>
           </div>
           <div className="surgery-summary-wrap">
-          <table className="surgery-summary-table">
-            <thead>
-              <tr>
-                <th>Professor</th>
-                <th>Ge</th>
-                <th>Lo</th>
-                <th>Etc.</th>
-                <th>{'\uC785\uC6D0'}</th>
-                <th>{'\uD1F4\uC6D0'}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedMonthProfessors.map((p) => (
-                <tr key={p.professor_name}>
-                  <td>
-                    <button className="professor-link-btn" onClick={() => showCases(p.professor_name)}>
-                      {p.professor_name}
-                    </button>
-                  </td>
-                  <td>{p.total_general || 0}</td>
-                  <td>{p.total_local || 0}</td>
-                  <td>{
-                    (Number(p.total_mac) || 0) +
-                    (Number(p.total_bpb) || 0) +
-                    (Number(p.total_snb) || 0) +
-                    (Number(p.total_fnb) || 0) +
-                    (Number(p.total_spinal) || 0)
-                  }</td>
-                  <td>{p.total_admission || 0}</td>
-                  <td>{p.total_discharge || 0}</td>
+            <table className="surgery-summary-table">
+              <thead>
+                <tr>
+                  <th>Professor</th>
+                  <th>Ge</th>
+                  <th>Lo</th>
+                  <th>Etc.</th>
+                  <th>{'\uC785\uC6D0'}</th>
+                  <th>{'\uD1F4\uC6D0'}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {selectedMonthProfessors.map((p) => (
+                  <tr key={p.professor_name}>
+                    <td>
+                      <button className="professor-link-btn" onClick={() => showCases(p.professor_name)}>
+                        {p.professor_name}
+                      </button>
+                    </td>
+                    <td>{p.total_general || 0}</td>
+                    <td>{p.total_local || 0}</td>
+                    <td>{
+                      (Number(p.total_mac) || 0) +
+                      (Number(p.total_bpb) || 0) +
+                      (Number(p.total_snb) || 0) +
+                      (Number(p.total_fnb) || 0) +
+                      (Number(p.total_spinal) || 0)
+                    }</td>
+                    <td>{p.total_admission || 0}</td>
+                    <td>{p.total_discharge || 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       </div>
 
-      <section className="card metrics-viewer-card" style={{ marginBottom: '1rem' }}>
+      <section ref={metricsRef} className="card metrics-viewer-card" style={{ marginBottom: '1rem' }}>
         <div className="metrics-layout">
           <aside className="metrics-nav" aria-label="지표 선택">
             <button
