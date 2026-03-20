@@ -33,6 +33,34 @@ function convertPlaceholders(sql) {
   return sql.replace(/\?/g, () => `$${++idx}`);
 }
 
+class PostgresClientAdapter {
+  constructor(client) {
+    this.client = client;
+  }
+
+  async exec(sql) {
+    await this.client.query(sql);
+  }
+
+  async run(sql, params = []) {
+    const query = convertPlaceholders(sql);
+    const result = await this.client.query(query, params);
+    return { changes: result.rowCount };
+  }
+
+  async get(sql, params = []) {
+    const query = convertPlaceholders(sql);
+    const result = await this.client.query(query, params);
+    return result.rows[0] || null;
+  }
+
+  async all(sql, params = []) {
+    const query = convertPlaceholders(sql);
+    const result = await this.client.query(query, params);
+    return result.rows;
+  }
+}
+
 class PostgresAdapter {
   constructor(pool) {
     this.pool = pool;
@@ -58,6 +86,22 @@ class PostgresAdapter {
     const query = convertPlaceholders(sql);
     const result = await this.pool.query(query, params);
     return result.rows;
+  }
+
+  async transaction(fn) {
+    const client = await this.pool.connect();
+    const adapter = new PostgresClientAdapter(client);
+    try {
+      await client.query('BEGIN');
+      const result = await fn(adapter);
+      await client.query('COMMIT');
+      return result;
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch {}
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }
 
@@ -90,7 +134,7 @@ async function seedData(db) {
 }
 
 async function setupPostgresDatabase(connectionString) {
-  const pool = new Pool({ connectionString, max: 10, ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : undefined });
+  const pool = new Pool({ connectionString, max: 3, ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : undefined });
   const db = new PostgresAdapter(pool);
 
   await db.exec(`
@@ -193,6 +237,12 @@ async function setupPostgresDatabase(connectionString) {
 
     ALTER TABLE professor_case_classifications
       ADD COLUMN IF NOT EXISTS case_count INTEGER NOT NULL DEFAULT 1;
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
 
   await seedData(db);

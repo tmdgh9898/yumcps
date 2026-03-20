@@ -83,7 +83,6 @@ const DISCHARGE_SCORE_INPUT_STORAGE_KEY = 'yumcps.dischargeScoreInputByMonth.v1'
 const ER_SCORE_INPUT_STORAGE_KEY = 'yumcps.erScoreInputByMonth.v1'
 const METRIC_SYNC_STORAGE_KEY = 'yumcps.metricSyncByMonth.v1'
 // 수동 수정된 기본 데이터를 저장하는 키 (API/하드코딩보다 우선 적용)
-const MANUAL_BASE_DATA_KEY = 'yumcps.manualBaseData.v1'
 const SCORE_BASE_ROWS_OUTPATIENT = [
   { id: 1, label: '\u2460 2500\uBA85 \uBBF8\uB9CC', min: 0, max: 2499, score: 0 },
   { id: 2, label: '\u2461 2500~3500\uBA85', min: 2500, max: 3500, score: 2 },
@@ -253,24 +252,7 @@ function App() {
   const [fileLogPage, setFileLogPage] = useState(1)
   const [fileLogState, setFileLogState] = useState({ loading: false, error: '', items: [], total: 0, totalPages: 1 })
   const [metricView, setMetricView] = useState('discharge')
-  // 수동 기본 데이터: 첫 렌더링부터 localStorage를 동기 읽어 즉시 반영 (lazy initializer)
-  const [manualBaseData, setManualBaseData] = useState(() => {
-    try {
-      const raw = window.localStorage.getItem(MANUAL_BASE_DATA_KEY)
-      if (!raw) return { discharge: {}, outpatient: {}, er: {} }
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object') {
-        return {
-          discharge: parsed.discharge || {},
-          outpatient: parsed.outpatient || {},
-          er: parsed.er || {},
-        }
-      }
-    } catch {
-      // localStorage 접근 실패 시 빈 객체로 시작
-    }
-    return { discharge: {}, outpatient: {}, er: {} }
-  })
+  const [manualBaseData, setManualBaseData] = useState({ discharge: {}, outpatient: {}, er: {} })
   // 메트릭 수정 모드 상태
   const [metricsEditMode, setMetricsEditMode] = useState(false)
   // 수정 중인 임시값 (저장 전 draft)
@@ -284,6 +266,21 @@ function App() {
       // Ignore storage write failures.
     }
   }, [theme])
+
+  useEffect(() => {
+    api.get(`${API_BASE}/api/settings/manual-base-data`)
+      .then((res) => {
+        const data = res.data
+        if (data && typeof data === 'object') {
+          setManualBaseData({
+            discharge: data.discharge || {},
+            outpatient: data.outpatient || {},
+            er: data.er || {},
+          })
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     try {
@@ -366,15 +363,6 @@ function App() {
       // Ignore storage write failures.
     }
   }, [metricSyncByMonth])
-
-  // 수동 기본 데이터 변경 시 localStorage에 저장
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(MANUAL_BASE_DATA_KEY, JSON.stringify(manualBaseData))
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [manualBaseData])
 
   const monthOptions = useMemo(() => MONTHS.map((m) => ({ key: m, label: m.replace('-', '.') })), [])
   const fixedMonthIndexes = useMemo(() => Object.fromEntries(DISCHARGE_FIXED_MONTH_KEYS.map((month, idx) => [month, idx])), [])
@@ -1365,32 +1353,33 @@ function App() {
     setMetricsEditMode(true)
   }
 
-  // 수정 모드 저장: draft를 manualBaseData에 병합하고 localStorage에 자동 저장
+  // 수정 모드 저장: draft를 manualBaseData에 병합하고 API에 저장
   function saveMetricsEdit() {
-    setManualBaseData((prev) => {
-      const next = {
-        discharge: { ...prev.discharge },
-        outpatient: { ...prev.outpatient },
-        er: { ...prev.er },
-      }
-      if (metricView === 'discharge') {
-        Object.entries(metricsDraft).forEach(([professor, months]) => {
-          next.discharge[professor] = { ...(prev.discharge[professor] || {}), ...months }
-        })
-      } else if (metricView === 'outpatient') {
-        Object.entries(metricsDraft).forEach(([label, months]) => {
-          next.outpatient[label] = { ...(prev.outpatient[label] || {}), ...months }
-        })
-      } else {
-        // ER: draft['ER'][month] 구조
-        Object.entries(metricsDraft['ER'] || {}).forEach(([month, value]) => {
-          next.er[month] = value
-        })
-      }
-      return next
-    })
+    const next = {
+      discharge: { ...manualBaseData.discharge },
+      outpatient: { ...manualBaseData.outpatient },
+      er: { ...manualBaseData.er },
+    }
+    if (metricView === 'discharge') {
+      Object.entries(metricsDraft).forEach(([professor, months]) => {
+        next.discharge[professor] = { ...(manualBaseData.discharge[professor] || {}), ...months }
+      })
+    } else if (metricView === 'outpatient') {
+      Object.entries(metricsDraft).forEach(([label, months]) => {
+        next.outpatient[label] = { ...(manualBaseData.outpatient[label] || {}), ...months }
+      })
+    } else {
+      // ER: draft['ER'][month] 구조
+      Object.entries(metricsDraft['ER'] || {}).forEach(([month, value]) => {
+        next.er[month] = value
+      })
+    }
+    setManualBaseData(next)
     setMetricsEditMode(false)
     setMetricsDraft({})
+    api.put(`${API_BASE}/api/settings/manual-base-data`, next).catch((err) => {
+      console.error('Failed to save manual base data', err)
+    })
   }
 
   // 수정 취소

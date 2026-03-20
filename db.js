@@ -30,6 +30,27 @@ const DIAGNOSIS_CATEGORY_SEED = [
     { diagnosis_code: 'K', category_key: 'cosmetic' },
 ];
 
+class SqliteAdapter {
+    constructor(db) {
+        this._db = db;
+    }
+    exec(sql) { return this._db.exec(sql); }
+    run(sql, params) { return this._db.run(sql, params); }
+    get(sql, params) { return this._db.get(sql, params); }
+    all(sql, params) { return this._db.all(sql, params); }
+    async transaction(fn) {
+        await this._db.exec('BEGIN');
+        try {
+            const result = await fn(this);
+            await this._db.exec('COMMIT');
+            return result;
+        } catch (error) {
+            try { await this._db.exec('ROLLBACK'); } catch {}
+            throw error;
+        }
+    }
+}
+
 async function ensureColumn(db, tableName, columnName, columnTypeSql) {
     const columns = await db.all(`PRAGMA table_info(${tableName})`);
     if (!columns.some(c => c.name === columnName)) {
@@ -166,6 +187,14 @@ async function setupDatabase() {
         )
     `);
 
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
     for (const t of CATEGORY_THRESHOLDS_SEED) {
         await db.run(`
             INSERT INTO category_score_thresholds (
@@ -192,7 +221,7 @@ async function setupDatabase() {
     }
 
     console.log('Database setup completed.');
-    return db;
+    return new SqliteAdapter(db);
 }
 
 module.exports = { setupDatabase };

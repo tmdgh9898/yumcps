@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const os = require('os');
 const { ok, fail } = require('../utils/response');
 const { isValidMonth } = require('../utils/month');
 const { processUploadedFile } = require('../services/uploadService');
@@ -43,7 +44,7 @@ function parseDiagnosisCodeCounts(rawCodes, rawCodeCounts) {
 
 function createApiRouter({ db, dbType, reportRepository, generateMonthlyReport }) {
   const router = express.Router();
-  const upload = multer({ dest: 'uploads/' });
+  const upload = multer({ dest: os.tmpdir() });
 
   router.post('/upload', upload.single('file'), async (req, res) => {
     try {
@@ -332,6 +333,28 @@ function createApiRouter({ db, dbType, reportRepository, generateMonthlyReport }
       return ok(res, data);
     } catch (error) {
       return fail(res, 500, 'CASES_FAILED', error.message);
+    }
+  });
+
+  router.get('/settings/manual-base-data', async (_req, res) => {
+    try {
+      const data = await reportRepository.getManualBaseData();
+      return ok(res, data);
+    } catch (error) {
+      return fail(res, 500, 'MANUAL_BASE_DATA_GET_FAILED', error.message);
+    }
+  });
+
+  router.put('/settings/manual-base-data', async (req, res) => {
+    try {
+      const body = req.body;
+      if (!body || typeof body !== 'object') {
+        return fail(res, 400, 'INVALID_PAYLOAD', 'Request body must be an object.');
+      }
+      await reportRepository.setManualBaseData(body);
+      return ok(res, { saved: true });
+    } catch (error) {
+      return fail(res, 500, 'MANUAL_BASE_DATA_SET_FAILED', error.message);
     }
   });
 

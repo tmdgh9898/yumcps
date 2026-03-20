@@ -370,12 +370,9 @@ class ReportRepository {
     diagnosisCodeCounts,
   }) {
     const normalizedCounts = this.normalizeDiagnosisCodeCounts(diagnosisCodeCounts);
-
-    let transactionStarted = false;
-    try {
-      await this.db.exec('BEGIN');
-      transactionStarted = true;
+    await this.db.transaction(async (txDb) => {
       await this.replaceCaseClassificationsNoTransaction({
+        db: txDb,
         date,
         professorName,
         patientName,
@@ -383,30 +380,16 @@ class ReportRepository {
         anesthesia,
         diagnosisCodeCounts: normalizedCounts,
       });
-      await this.db.exec('COMMIT');
-      transactionStarted = false;
-      return normalizedCounts;
-    } catch (error) {
-      if (transactionStarted) {
-        try {
-          await this.db.exec('ROLLBACK');
-        } catch {
-          // Ignore rollback errors.
-        }
-      }
-      throw error;
-    }
+    });
+    return normalizedCounts;
   }
 
   async setCaseClassificationsBulk(items = []) {
-    let transactionStarted = false;
-    try {
-      await this.db.exec('BEGIN');
-      transactionStarted = true;
-
+    await this.db.transaction(async (txDb) => {
       for (const item of items) {
         const normalizedCounts = this.normalizeDiagnosisCodeCounts(item.diagnosisCodeCounts);
         await this.replaceCaseClassificationsNoTransaction({
+          db: txDb,
           date: item.date,
           professorName: item.professorName,
           patientName: item.patientName,
@@ -415,20 +398,8 @@ class ReportRepository {
           diagnosisCodeCounts: normalizedCounts,
         });
       }
-
-      await this.db.exec('COMMIT');
-      transactionStarted = false;
-      return { savedCount: items.length };
-    } catch (error) {
-      if (transactionStarted) {
-        try {
-          await this.db.exec('ROLLBACK');
-        } catch {
-          // Ignore rollback errors.
-        }
-      }
-      throw error;
-    }
+    });
+    return { savedCount: items.length };
   }
 
   async clearManualClassificationsByMonth(month) {
@@ -452,6 +423,7 @@ class ReportRepository {
   }
 
   async replaceCaseClassificationsNoTransaction({
+    db,
     date,
     professorName,
     patientName,
@@ -459,7 +431,7 @@ class ReportRepository {
     anesthesia,
     diagnosisCodeCounts,
   }) {
-    const caseRow = await this.db.get(
+    const caseRow = await db.get(
       `SELECT id
        FROM professor_cases
        WHERE date = ?
@@ -475,7 +447,7 @@ class ReportRepository {
       throw new Error('Target case row not found.');
     }
 
-    await this.db.run(
+    await db.run(
       `DELETE FROM professor_case_classifications
        WHERE date = ?
          AND professor_name = ?
@@ -486,7 +458,7 @@ class ReportRepository {
     );
 
     for (const [diagnosisCode, caseCount] of Object.entries(diagnosisCodeCounts || {})) {
-      await this.db.run(
+      await db.run(
         `INSERT INTO professor_case_classifications (
            date,
            professor_name,
@@ -505,6 +477,37 @@ class ReportRepository {
         [date, professorName, patientName, caseName, anesthesia, diagnosisCode, caseCount]
       );
     }
+  }
+
+  async getManualBaseData() {
+    const row = await this.db.get(
+      `SELECT value FROM app_settings WHERE key = 'manual_base_data'`
+    );
+    if (!row) return { discharge: {}, outpatient: {}, er: {} };
+    try {
+      const parsed = JSON.parse(row.value);
+      return {
+        discharge: parsed.discharge || {},
+        outpatient: parsed.outpatient || {},
+        er: parsed.er || {},
+      };
+    } catch {
+      return { discharge: {}, outpatient: {}, er: {} };
+    }
+  }
+
+  async setManualBaseData(data) {
+    const value = JSON.stringify({
+      discharge: data.discharge || {},
+      outpatient: data.outpatient || {},
+      er: data.er || {},
+    });
+    await this.db.run(
+      `INSERT INTO app_settings (key, value, updated_at)
+       VALUES ('manual_base_data', ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+      [value]
+    );
   }
 
   async getExportData(month) {
