@@ -1554,6 +1554,7 @@ function App() {
               {'\uD30C\uC77C\uB85C\uADF8 \uBCF4\uAE30'}
             </button>
           </div>
+
           <div className="upload-banner">
             <div
               className={`upload-dropzone${isUploadDragActive ? ' is-dragging' : ''}`}
