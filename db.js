@@ -136,6 +136,11 @@ async function setupDatabase() {
     `);
 
     await db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_prof_cases_date_prof
+        ON professor_cases(date, professor_name)
+    `);
+
+    await db.exec(`
         CREATE INDEX IF NOT EXISTS idx_prof_case_classifications_date_prof
         ON professor_case_classifications(date, professor_name)
     `);
