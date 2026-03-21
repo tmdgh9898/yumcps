@@ -290,6 +290,10 @@ h1 {
   animation: gradientShift 6s ease-in-out infinite;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes gradientShift {
 
   0%,

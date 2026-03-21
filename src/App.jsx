@@ -225,6 +225,8 @@ function App() {
   const [residentByYear, setResidentByYear] = useState({ y1: 2, y2: 2, y3: 1, y4: 1 })
   const [message, setMessage] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [dashboardLoading, setDashboardLoading] = useState(true)
+  const [uploadMessage, setUploadMessage] = useState('')
   const [detailModal, setDetailModal] = useState(DETAIL_MODAL_INITIAL_STATE)
   const [savingCaseChecks, setSavingCaseChecks] = useState({})
   const [editingCaseKey, setEditingCaseKey] = useState('')
@@ -812,7 +814,9 @@ function App() {
   }
 
   useEffect(() => {
-    fetchDashboard().catch((err) => setMessage(err.message))
+    fetchDashboard()
+      .catch((err) => setMessage(err.message))
+      .finally(() => setDashboardLoading(false))
   }, [])
 
   useEffect(() => {
@@ -869,11 +873,18 @@ function App() {
     setMessage('')
 
     const BATCH_SIZE = 5
+    const totalBatches = Math.ceil(files.length / BATCH_SIZE)
     let totalSuccess = 0
     let totalFail = 0
 
     try {
       for (let i = 0; i < files.length; i += BATCH_SIZE) {
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1
+        setUploadMessage(
+          totalBatches > 1
+            ? `파일 업로드 중... (${batchNum}/${totalBatches})`
+            : `파일 업로드 및 파싱 중...`
+        )
         const batch = files.slice(i, i + BATCH_SIZE)
         const formData = new FormData()
         batch.forEach((file) => formData.append('files', file))
@@ -881,6 +892,7 @@ function App() {
         totalSuccess += res?.data?.successCount ?? 0
         totalFail += res?.data?.failCount ?? 0
       }
+      setUploadMessage('데이터 불러오는 중...')
       setMessage(`Upload completed. Success: ${totalSuccess}, Failed: ${totalFail}`)
       await fetchDashboard()
       if (fileLogModalOpen) {
@@ -890,6 +902,7 @@ function App() {
       setMessage('Upload failed: ' + err.message)
     } finally {
       setUploading(false)
+      setUploadMessage('')
     }
   }
 
@@ -1328,6 +1341,26 @@ function App() {
 
   return (
     <div className="container">
+      {(dashboardLoading || uploading) && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: '16px',
+        }}>
+          <div style={{
+            width: '48px', height: '48px', borderRadius: '50%',
+            border: '4px solid rgba(255,255,255,0.2)',
+            borderTopColor: '#fff',
+            animation: 'spin 0.8s linear infinite',
+          }} />
+          <p style={{ color: '#fff', fontSize: '16px', fontWeight: 500, margin: 0 }}>
+            {uploading
+              ? (uploadMessage || '파일 업로드 및 파싱 중...')
+              : '데이터 불러오는 중...'}
+          </p>
+        </div>
+      )}
       <header>
         <div className="header-topbar">
           <button type="button" className="theme-toggle-btn" onClick={toggleTheme}>
