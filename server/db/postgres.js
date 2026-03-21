@@ -134,7 +134,7 @@ async function seedData(db) {
 }
 
 async function setupPostgresDatabase(connectionString) {
-  const pool = new Pool({ connectionString, max: 3, ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : undefined });
+  const pool = new Pool({ connectionString, max: 3, ssl: { rejectUnauthorized: false } });
   const db = new PostgresAdapter(pool);
 
   await db.exec(`
