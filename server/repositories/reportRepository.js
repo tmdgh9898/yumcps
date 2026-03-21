@@ -514,14 +514,11 @@ class ReportRepository {
     const row = await this.db.get(
       `SELECT value FROM app_settings WHERE key = 'score_settings'`
     );
-    const fallback = { scoreInputByMonth: {}, dischargeScoreInputByMonth: {}, erScoreInputByMonth: {}, metricSyncByMonth: { discharge: {}, outpatient: {}, er: {} } };
+    const fallback = { metricSyncByMonth: { discharge: {}, outpatient: {}, er: {} } };
     if (!row) return fallback;
     try {
       const parsed = JSON.parse(row.value);
       return {
-        scoreInputByMonth: parsed.scoreInputByMonth || {},
-        dischargeScoreInputByMonth: parsed.dischargeScoreInputByMonth || {},
-        erScoreInputByMonth: parsed.erScoreInputByMonth || {},
         metricSyncByMonth: parsed.metricSyncByMonth || { discharge: {}, outpatient: {}, er: {} },
       };
     } catch {
@@ -531,9 +528,6 @@ class ReportRepository {
 
   async setScoreSettings(data) {
     const value = JSON.stringify({
-      scoreInputByMonth: data.scoreInputByMonth || {},
-      dischargeScoreInputByMonth: data.dischargeScoreInputByMonth || {},
-      erScoreInputByMonth: data.erScoreInputByMonth || {},
       metricSyncByMonth: data.metricSyncByMonth || { discharge: {}, outpatient: {}, er: {} },
     });
     await this.db.run(

@@ -238,9 +238,6 @@ function App() {
   const [surgeryScoreModalOpen, setSurgeryScoreModalOpen] = useState(false)
   const [surgeryScoreState, setSurgeryScoreState] = useState({ loading: false, error: '', data: null })
   const [scoreModalType, setScoreModalType] = useState('discharge')
-  const [scoreInputByMonth, setScoreInputByMonth] = useState({})
-  const [dischargeScoreInputByMonth, setDischargeScoreInputByMonth] = useState({})
-  const [erScoreInputByMonth, setErScoreInputByMonth] = useState({})
   const [metricSyncByMonth, setMetricSyncByMonth] = useState({ discharge: {}, outpatient: {}, er: {} })
   const [rangeStartMonth, setRangeStartMonth] = useState(CURRENT_MONTH)
   const [rangeEndMonth, setRangeEndMonth] = useState(CURRENT_MONTH)
@@ -288,9 +285,6 @@ function App() {
       .then((res) => {
         const data = res.data
         if (!data || typeof data !== 'object') return
-        if (data.scoreInputByMonth && typeof data.scoreInputByMonth === 'object') setScoreInputByMonth(data.scoreInputByMonth)
-        if (data.dischargeScoreInputByMonth && typeof data.dischargeScoreInputByMonth === 'object') setDischargeScoreInputByMonth(data.dischargeScoreInputByMonth)
-        if (data.erScoreInputByMonth && typeof data.erScoreInputByMonth === 'object') setErScoreInputByMonth(data.erScoreInputByMonth)
         if (data.metricSyncByMonth) setMetricSyncByMonth(normalizeMetricSyncState(data.metricSyncByMonth))
       })
       .catch(() => {})
@@ -301,14 +295,9 @@ function App() {
     if (!scoreLoadedRef.current) return
     clearTimeout(saveScoreTimerRef.current)
     saveScoreTimerRef.current = setTimeout(() => {
-      api.put(`${API_BASE}/api/settings/scores`, {
-        scoreInputByMonth,
-        dischargeScoreInputByMonth,
-        erScoreInputByMonth,
-        metricSyncByMonth,
-      }).catch(() => {})
+      api.put(`${API_BASE}/api/settings/scores`, { metricSyncByMonth }).catch(() => {})
     }, 800)
-  }, [scoreInputByMonth, dischargeScoreInputByMonth, erScoreInputByMonth, metricSyncByMonth])
+  }, [metricSyncByMonth])
 
   const monthOptions = useMemo(() => MONTHS.map((m) => ({ key: m, label: m.replace('-', '.') })), [])
   const fixedMonthIndexes = useMemo(() => Object.fromEntries(DISCHARGE_FIXED_MONTH_KEYS.map((month, idx) => [month, idx])), [])
@@ -543,15 +532,14 @@ function App() {
     [selectedMonthKeys, dischargeBaseMonthTotals]
   )
   const activeScoreDefaults = scoreModalType === 'discharge' ? dischargeScoreDefaultByMonth : scoreDefaultByMonth
-  const activeScoreInputs = scoreModalType === 'discharge' ? dischargeScoreInputByMonth : scoreInputByMonth
   const activeScoreSyncedByMonth = scoreModalType === 'discharge' ? syncedDischargeByMonth : syncedOutpatientByMonth
   const editableMonthlyRows = useMemo(
     () => selectedMonthKeys.map((month) => ({
       month,
       defaultValue: Number(activeScoreDefaults[month] || 0),
-      value: Number(activeScoreInputs[month] ?? activeScoreSyncedByMonth[month] ?? activeScoreDefaults[month] ?? 0),
+      value: Number(activeScoreSyncedByMonth[month] ?? activeScoreDefaults[month] ?? 0),
     })),
-    [selectedMonthKeys, activeScoreDefaults, activeScoreInputs, activeScoreSyncedByMonth]
+    [selectedMonthKeys, activeScoreDefaults, activeScoreSyncedByMonth]
   )
   const scorePeriodSum = useMemo(
     () => editableMonthlyRows.reduce((sum, row) => sum + (Number(row.value) || 0), 0),
@@ -601,9 +589,9 @@ function App() {
     () => selectedMonthKeys.map((month) => ({
       month,
       defaultValue: Number(erScoreDefaultByMonth[month] || 0),
-      value: Number(erScoreInputByMonth[month] ?? syncedErByMonth[month] ?? erScoreDefaultByMonth[month] ?? 0),
+      value: Number(syncedErByMonth[month] ?? erScoreDefaultByMonth[month] ?? 0),
     })),
-    [selectedMonthKeys, erScoreDefaultByMonth, erScoreInputByMonth, syncedErByMonth]
+    [selectedMonthKeys, erScoreDefaultByMonth, syncedErByMonth]
   )
   const erScorePeriodSum = useMemo(
     () => erEditableMonthlyRows.reduce((sum, row) => sum + (Number(row.value) || 0), 0),
@@ -618,24 +606,6 @@ function App() {
     })
   }, [erPerResident])
   const erMatchedScore = erScoreRows.find((row) => row.isMatched)?.score ?? 0
-  const hasPendingCategoryScoreSync = useMemo(
-    () => editableMonthlyRows.some((row) => {
-      const currentApplied = Object.prototype.hasOwnProperty.call(activeScoreSyncedByMonth, row.month)
-        ? normalizeNonNegativeInt(activeScoreSyncedByMonth[row.month])
-        : normalizeNonNegativeInt(activeScoreDefaults[row.month] || 0)
-      return normalizeNonNegativeInt(row.value) !== currentApplied
-    }),
-    [editableMonthlyRows, activeScoreSyncedByMonth, activeScoreDefaults]
-  )
-  const hasPendingErScoreSync = useMemo(
-    () => erEditableMonthlyRows.some((row) => {
-      const currentApplied = Object.prototype.hasOwnProperty.call(syncedErByMonth, row.month)
-        ? normalizeNonNegativeInt(syncedErByMonth[row.month])
-        : normalizeNonNegativeInt(erScoreDefaultByMonth[row.month] || 0)
-      return normalizeNonNegativeInt(row.value) !== currentApplied
-    }),
-    [erEditableMonthlyRows, syncedErByMonth, erScoreDefaultByMonth]
-  )
   const surgeryScoreRows = useMemo(
     () => Array.isArray(surgeryScoreState.data?.rows) ? surgeryScoreState.data.rows : [],
     [surgeryScoreState.data]
@@ -1137,56 +1107,33 @@ function App() {
     })
   }
 
-  function handleSyncCategoryScoreInputs() {
+  function updateScoreInput(monthKey, nextValue) {
     const targetView = scoreModalType === 'discharge' ? 'discharge' : 'outpatient'
     const baseByMonth = targetView === 'discharge' ? dischargeScoreDefaultByMonth : scoreDefaultByMonth
-    const monthValueMap = Object.fromEntries(
-      editableMonthlyRows.map((row) => [row.month, normalizeNonNegativeInt(row.value)])
-    )
-    applyMetricSync(targetView, monthValueMap, baseByMonth)
-    setMessage('지표 Sync 완료: 바깥 표에 반영되었습니다.')
-  }
-
-  function handleSyncErScoreInputs() {
-    const monthValueMap = Object.fromEntries(
-      erEditableMonthlyRows.map((row) => [row.month, normalizeNonNegativeInt(row.value)])
-    )
-    applyMetricSync('er', monthValueMap, erScoreDefaultByMonth)
-    setMessage('ER Sync 완료: 바깥 표에 반영되었습니다.')
-  }
-
-  function updateScoreInput(monthKey, nextValue) {
-    const parsed = normalizeNonNegativeInt(nextValue)
-    if (scoreModalType === 'discharge') {
-      setDischargeScoreInputByMonth((prev) => ({ ...prev, [monthKey]: parsed }))
-      return
-    }
-    setScoreInputByMonth((prev) => ({ ...prev, [monthKey]: parsed }))
+    applyMetricSync(targetView, { ...Object.fromEntries(editableMonthlyRows.map((r) => [r.month, r.value])), [monthKey]: normalizeNonNegativeInt(nextValue) }, baseByMonth)
   }
 
   function resetScoreInputs() {
-    const nextInputs = {}
-    selectedMonthKeys.forEach((month) => {
-      nextInputs[month] = normalizeNonNegativeInt(activeScoreDefaults[month] || 0)
+    const targetView = scoreModalType === 'discharge' ? 'discharge' : 'outpatient'
+    setMetricSyncByMonth((prev) => {
+      const safePrev = normalizeMetricSyncState(prev)
+      const next = { ...safePrev[targetView] }
+      selectedMonthKeys.forEach((month) => delete next[month])
+      return { ...safePrev, [targetView]: next }
     })
-    if (scoreModalType === 'discharge') {
-      setDischargeScoreInputByMonth((prev) => ({ ...prev, ...nextInputs }))
-      return
-    }
-    setScoreInputByMonth((prev) => ({ ...prev, ...nextInputs }))
   }
 
   function updateErScoreInput(monthKey, nextValue) {
-    const parsed = normalizeNonNegativeInt(nextValue)
-    setErScoreInputByMonth((prev) => ({ ...prev, [monthKey]: parsed }))
+    applyMetricSync('er', { ...Object.fromEntries(erEditableMonthlyRows.map((r) => [r.month, r.value])), [monthKey]: normalizeNonNegativeInt(nextValue) }, erScoreDefaultByMonth)
   }
 
   function resetErScoreInputs() {
-    const nextInputs = {}
-    selectedMonthKeys.forEach((month) => {
-      nextInputs[month] = normalizeNonNegativeInt(erScoreDefaultByMonth[month] || 0)
+    setMetricSyncByMonth((prev) => {
+      const safePrev = normalizeMetricSyncState(prev)
+      const next = { ...safePrev.er }
+      selectedMonthKeys.forEach((month) => delete next[month])
+      return { ...safePrev, er: next }
     })
-    setErScoreInputByMonth((prev) => ({ ...prev, ...nextInputs }))
   }
 
   function formatConvertedRange(row) {
@@ -2182,13 +2129,6 @@ function App() {
                 <button className="btn btn-subtle score-reset-btn" onClick={resetScoreInputs}>
                   {'\uAE30\uBCF8\uAC12 \uBCF5\uC6D0'}
                 </button>
-                <button
-                  className="btn btn-subtle score-sync-btn"
-                  onClick={handleSyncCategoryScoreInputs}
-                  disabled={!hasPendingCategoryScoreSync}
-                >
-                  Sync
-                </button>
               </div>
             </div>
             <div className="score-table-scroll">
@@ -2271,13 +2211,6 @@ function App() {
               <div className="score-input-actions">
                 <button className="btn btn-subtle score-reset-btn" onClick={resetErScoreInputs}>
                   {'\uAE30\uBCF8\uAC12 \uBCF5\uC6D0'}
-                </button>
-                <button
-                  className="btn btn-subtle score-sync-btn"
-                  onClick={handleSyncErScoreInputs}
-                  disabled={!hasPendingErScoreSync}
-                >
-                  Sync
                 </button>
               </div>
             </div>
