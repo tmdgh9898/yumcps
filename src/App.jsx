@@ -29,9 +29,9 @@ function formatMonthLabel(month, short = false) {
   return short ? `${year.slice(2)}.${mon}` : `${year}.${mon}`
 }
 
-const MONTHS = buildMonthRange('2025-09', '2027-02')
 const TODAY_MONTH = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
-const CURRENT_MONTH = MONTHS.includes(TODAY_MONTH) ? TODAY_MONTH : MONTHS[MONTHS.length - 1]
+const MONTHS = buildMonthRange('2025-09', TODAY_MONTH)
+const CURRENT_MONTH = TODAY_MONTH
 const SUBTITLE_TEXT = '\uC6D4\uAC04\uBCF4\uACE0 \uC790\uB3D9\uD654 \uBC0F \uC2EC\uC0AC \uC810\uC218 \uD655\uC778'
 const YEAR_LABELS = ['1\uB144\uCC28', '2\uB144\uCC28', '3\uB144\uCC28', '4\uB144\uCC28']
 const SCORE_PREFIX = '\uCD1D \uC804\uACF5\uC758\uC218'
