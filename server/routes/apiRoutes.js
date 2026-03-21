@@ -356,6 +356,27 @@ function createApiRouter({ db, dbType, reportRepository, generateMonthlyReport }
     }
   });
 
+  router.get('/settings/scores', async (_req, res) => {
+    try {
+      const data = await reportRepository.getScoreSettings();
+      return ok(res, data);
+    } catch (error) {
+      return fail(res, 500, 'SCORE_SETTINGS_GET_FAILED', error.message);
+    }
+  });
+
+  router.put('/settings/scores', async (req, res) => {
+    try {
+      if (!req.body || typeof req.body !== 'object') {
+        return fail(res, 400, 'INVALID_PAYLOAD', 'Request body must be an object.');
+      }
+      await reportRepository.setScoreSettings(req.body);
+      return ok(res, { saved: true });
+    } catch (error) {
+      return fail(res, 500, 'SCORE_SETTINGS_SET_FAILED', error.message);
+    }
+  });
+
   router.get('/export/:month', async (req, res) => {
     try {
       const month = req.params.month;

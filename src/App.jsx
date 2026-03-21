@@ -80,10 +80,6 @@ const SURGERY_SCORE_BUTTON_LABEL = '\uD559\uD68C\uC2EC\uC0AC \uC810\uC218 \uCDA9
 const SURGERY_SCORE_MODAL_TITLE = '\uBD84\uC57C\uBCC4 \uC218\uC220 \uAC74\uC218'
 const ENABLE_SCORE_NEXT_STEP_HINT = true
 const THEME_STORAGE_KEY = 'yumcps.theme.v1'
-const SCORE_INPUT_STORAGE_KEY = 'yumcps.scoreInputByMonth.v1'
-const DISCHARGE_SCORE_INPUT_STORAGE_KEY = 'yumcps.dischargeScoreInputByMonth.v1'
-const ER_SCORE_INPUT_STORAGE_KEY = 'yumcps.erScoreInputByMonth.v1'
-const METRIC_SYNC_STORAGE_KEY = 'yumcps.metricSyncByMonth.v1'
 // 수동 수정된 기본 데이터를 저장하는 키 (API/하드코딩보다 우선 적용)
 const SCORE_BASE_ROWS_OUTPATIENT = [
   { id: 1, label: '\u2460 2500\uBA85 \uBBF8\uB9CC', min: 0, max: 2499, score: 0 },
@@ -284,87 +280,35 @@ function App() {
       .catch(() => {})
   }, [])
 
+  const scoreLoadedRef = useRef(false)
+  const saveScoreTimerRef = useRef(null)
+
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(SCORE_INPUT_STORAGE_KEY)
-      if (!raw) return
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        setScoreInputByMonth(parsed)
-      }
-    } catch {
-      // Ignore malformed localStorage values.
-    }
+    api.get(`${API_BASE}/api/settings/scores`)
+      .then((res) => {
+        const data = res.data
+        if (!data || typeof data !== 'object') return
+        if (data.scoreInputByMonth && typeof data.scoreInputByMonth === 'object') setScoreInputByMonth(data.scoreInputByMonth)
+        if (data.dischargeScoreInputByMonth && typeof data.dischargeScoreInputByMonth === 'object') setDischargeScoreInputByMonth(data.dischargeScoreInputByMonth)
+        if (data.erScoreInputByMonth && typeof data.erScoreInputByMonth === 'object') setErScoreInputByMonth(data.erScoreInputByMonth)
+        if (data.metricSyncByMonth) setMetricSyncByMonth(normalizeMetricSyncState(data.metricSyncByMonth))
+      })
+      .catch(() => {})
+      .finally(() => { scoreLoadedRef.current = true })
   }, [])
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(DISCHARGE_SCORE_INPUT_STORAGE_KEY)
-      if (!raw) return
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        setDischargeScoreInputByMonth(parsed)
-      }
-    } catch {
-      // Ignore malformed localStorage values.
-    }
-  }, [])
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(ER_SCORE_INPUT_STORAGE_KEY)
-      if (!raw) return
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        setErScoreInputByMonth(parsed)
-      }
-    } catch {
-      // Ignore malformed localStorage values.
-    }
-  }, [])
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(METRIC_SYNC_STORAGE_KEY)
-      if (!raw) return
-      const parsed = JSON.parse(raw)
-      setMetricSyncByMonth(normalizeMetricSyncState(parsed))
-    } catch {
-      // Ignore malformed localStorage values.
-    }
-  }, [])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(SCORE_INPUT_STORAGE_KEY, JSON.stringify(scoreInputByMonth))
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [scoreInputByMonth])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(DISCHARGE_SCORE_INPUT_STORAGE_KEY, JSON.stringify(dischargeScoreInputByMonth))
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [dischargeScoreInputByMonth])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(ER_SCORE_INPUT_STORAGE_KEY, JSON.stringify(erScoreInputByMonth))
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [erScoreInputByMonth])
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(METRIC_SYNC_STORAGE_KEY, JSON.stringify(metricSyncByMonth))
-    } catch {
-      // Ignore storage write failures.
-    }
-  }, [metricSyncByMonth])
+    if (!scoreLoadedRef.current) return
+    clearTimeout(saveScoreTimerRef.current)
+    saveScoreTimerRef.current = setTimeout(() => {
+      api.put(`${API_BASE}/api/settings/scores`, {
+        scoreInputByMonth,
+        dischargeScoreInputByMonth,
+        erScoreInputByMonth,
+        metricSyncByMonth,
+      }).catch(() => {})
+    }, 800)
+  }, [scoreInputByMonth, dischargeScoreInputByMonth, erScoreInputByMonth, metricSyncByMonth])
 
   const monthOptions = useMemo(() => MONTHS.map((m) => ({ key: m, label: m.replace('-', '.') })), [])
   const fixedMonthIndexes = useMemo(() => Object.fromEntries(DISCHARGE_FIXED_MONTH_KEYS.map((month, idx) => [month, idx])), [])
