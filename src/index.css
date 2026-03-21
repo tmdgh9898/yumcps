@@ -136,10 +136,6 @@
   padding: 0;
 }
 
-html {
-  overflow-x: clip;
-}
-
 body {
   font-family: 'Inter', 'Noto Sans KR', sans-serif;
   background-color: var(--bg-page);
@@ -147,7 +143,6 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: clip;
 }
 
 .container {
@@ -2313,8 +2308,4 @@ tbody tr:hover {
     min-width: 0;
   }
 
-  /* recharts wrapper가 부모를 초과하지 않도록 */
-  .recharts-wrapper {
-    max-width: 100%;
-  }
 }
