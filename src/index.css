@@ -1043,6 +1043,13 @@ tbody tr:hover {
   color: var(--professor-link-hover);
 }
 
+.detail-modal-loading {
+  text-align: center;
+  padding: 2rem;
+  color: #888;
+  font-size: 0.95rem;
+}
+
 .detail-cases-table {
   table-layout: fixed;
   width: 100%;

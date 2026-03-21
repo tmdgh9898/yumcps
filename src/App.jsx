@@ -128,7 +128,7 @@ const DIAGNOSIS_LABEL_BY_CODE = {
   K: 'K. \uBBF8\uC6A9',
 }
 const DIAGNOSIS_CODE_OPTIONS = Object.entries(DIAGNOSIS_LABEL_BY_CODE).map(([code, label]) => ({ code, label }))
-const DETAIL_MODAL_INITIAL_STATE = { show: false, professor: '', cases: [] }
+const DETAIL_MODAL_INITIAL_STATE = { show: false, professor: '', cases: [], loading: false }
 
 function normalizeNonNegativeInt(value) {
   return Math.max(0, Math.floor(Number(value) || 0))
@@ -949,14 +949,16 @@ function App() {
   }
 
   async function showCases(professor) {
+    setDetailModal({ show: true, professor, cases: [], loading: true })
+    setSavingCaseChecks({})
+    setEditingCaseKey('')
+    setEditingCaseCodeCounts({})
+    setDetailEditError('')
     try {
       const res = await api.get(`${API_BASE}/api/cases/${casesMonth}/${professor}`)
-      setDetailModal({ show: true, professor, cases: res.data || [] })
-      setSavingCaseChecks({})
-      setEditingCaseKey('')
-      setEditingCaseCodeCounts({})
-      setDetailEditError('')
+      setDetailModal((prev) => ({ ...prev, cases: res.data || [], loading: false }))
     } catch (err) {
+      setDetailModal((prev) => ({ ...prev, loading: false }))
       setMessage('Case load failed: ' + err.message)
     }
   }
@@ -2016,6 +2018,9 @@ function App() {
                 ))}
               </div>
             </details>
+            {detailModal.loading && (
+              <div className="detail-modal-loading">불러오는 중...</div>
+            )}
             <table className="detail-cases-table">
               <thead>
                 <tr>

@@ -246,47 +246,48 @@ class ReportRepository {
   }
 
   async getCases(month, professor) {
-    const rows = await this.db.all(
-      `SELECT
-         date,
-         professor_name,
-         patient_name,
-         case_name,
-         anesthesia,
-         diagnosis_code,
-         SUM(count) as total_count
-       FROM professor_cases
-       WHERE date LIKE ? AND professor_name = ?
-       GROUP BY date, professor_name, patient_name, case_name, anesthesia, diagnosis_code
-       ORDER BY date ASC, patient_name ASC`,
-      [`${month}%`, professor]
-    );
-
-    const manualRows = await this.db.all(
-      `SELECT
-         date,
-         professor_name,
-         patient_name,
-         case_name,
-         anesthesia,
-         diagnosis_code,
-         case_count
-       FROM professor_case_classifications
-       WHERE date LIKE ? AND professor_name = ?`,
-      [`${month}%`, professor]
-    );
-    const checkRows = await this.db.all(
-      `SELECT
-         date,
-         professor_name,
-         patient_name,
-         case_name,
-         anesthesia,
-         is_checked
-       FROM professor_case_checks
-       WHERE date LIKE ? AND professor_name = ?`,
-      [`${month}%`, professor]
-    );
+    const [rows, manualRows, checkRows] = await Promise.all([
+      this.db.all(
+        `SELECT
+           date,
+           professor_name,
+           patient_name,
+           case_name,
+           anesthesia,
+           diagnosis_code,
+           SUM(count) as total_count
+         FROM professor_cases
+         WHERE date LIKE ? AND professor_name = ?
+         GROUP BY date, professor_name, patient_name, case_name, anesthesia, diagnosis_code
+         ORDER BY date ASC, patient_name ASC`,
+        [`${month}%`, professor]
+      ),
+      this.db.all(
+        `SELECT
+           date,
+           professor_name,
+           patient_name,
+           case_name,
+           anesthesia,
+           diagnosis_code,
+           case_count
+         FROM professor_case_classifications
+         WHERE date LIKE ? AND professor_name = ?`,
+        [`${month}%`, professor]
+      ),
+      this.db.all(
+        `SELECT
+           date,
+           professor_name,
+           patient_name,
+           case_name,
+           anesthesia,
+           is_checked
+         FROM professor_case_checks
+         WHERE date LIKE ? AND professor_name = ?`,
+        [`${month}%`, professor]
+      ),
+    ]);
 
     const manualByCaseKey = new Map();
     for (const row of manualRows) {
