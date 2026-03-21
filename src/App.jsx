@@ -30,6 +30,8 @@ function formatMonthLabel(month, short = false) {
 }
 
 const MONTHS = buildMonthRange('2025-09', '2027-02')
+const TODAY_MONTH = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+const CURRENT_MONTH = MONTHS.includes(TODAY_MONTH) ? TODAY_MONTH : MONTHS[MONTHS.length - 1]
 const SUBTITLE_TEXT = '\uC6D4\uAC04\uBCF4\uACE0 \uC790\uB3D9\uD654 \uBC0F \uC2EC\uC0AC \uC810\uC218 \uD655\uC778'
 const YEAR_LABELS = ['1\uB144\uCC28', '2\uB144\uCC28', '3\uB144\uCC28', '4\uB144\uCC28']
 const SCORE_PREFIX = '\uCD1D \uC804\uACF5\uC758\uC218'
@@ -244,9 +246,9 @@ function App() {
   const [dischargeScoreInputByMonth, setDischargeScoreInputByMonth] = useState({})
   const [erScoreInputByMonth, setErScoreInputByMonth] = useState({})
   const [metricSyncByMonth, setMetricSyncByMonth] = useState({ discharge: {}, outpatient: {}, er: {} })
-  const [rangeStartMonth, setRangeStartMonth] = useState('2025-09')
-  const [rangeEndMonth, setRangeEndMonth] = useState('2026-02')
-  const [casesMonth, setCasesMonth] = useState('2026-02')
+  const [rangeStartMonth, setRangeStartMonth] = useState(CURRENT_MONTH)
+  const [rangeEndMonth, setRangeEndMonth] = useState(CURRENT_MONTH)
+  const [casesMonth, setCasesMonth] = useState(CURRENT_MONTH)
   const [isUploadDragActive, setIsUploadDragActive] = useState(false)
   const [fileLogModalOpen, setFileLogModalOpen] = useState(false)
   const [fileLogPage, setFileLogPage] = useState(1)
