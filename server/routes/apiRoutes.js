@@ -62,15 +62,13 @@ function createApiRouter({ db, dbType, reportRepository, generateMonthlyReport }
       const files = req.files || [];
       if (!files.length) return fail(res, 400, 'NO_FILE', 'No files uploaded.');
 
+      const settled = await Promise.allSettled(files.map(file => processUploadedFile(db, file)));
       const results = [];
       const errors = [];
-      for (const file of files) {
-        try {
-          const result = await processUploadedFile(db, file);
-          results.push(result);
-        } catch (error) {
-          errors.push({ fileName: file.originalname, error: error.message });
-        }
+      for (let i = 0; i < settled.length; i++) {
+        const s = settled[i];
+        if (s.status === 'fulfilled') results.push(s.value);
+        else errors.push({ fileName: files[i].originalname, error: s.reason?.message });
       }
 
       return ok(res, {
