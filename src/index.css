@@ -2119,7 +2119,7 @@ tbody tr:hover {
   .er-suture-monthly-table {
     min-width: 0 !important;
     width: 100%;
-    table-layout: fixed;
+    table-layout: fixed !important;
     margin-top: 0.45rem;
   }
 
@@ -2131,7 +2131,9 @@ tbody tr:hover {
   .er-suture-monthly-table td {
     font-size: 0.68rem;
     padding: 0.34rem 0.12rem;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: keep-all;
+    overflow: hidden;
     line-height: 1.08;
   }
 
