@@ -130,6 +130,23 @@ const DIAGNOSIS_LABEL_BY_CODE = {
 const DIAGNOSIS_CODE_OPTIONS = Object.entries(DIAGNOSIS_LABEL_BY_CODE).map(([code, label]) => ({ code, label }))
 const DETAIL_MODAL_INITIAL_STATE = { show: false, professor: '', cases: [], loading: false }
 
+const CACHE_TTL = 10 * 60 * 1000 // 10분
+function readCache(key) {
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    const { data, ts } = JSON.parse(raw)
+    if (Date.now() - ts > CACHE_TTL) { sessionStorage.removeItem(key); return null }
+    return data
+  } catch { return null }
+}
+function writeCache(key, data) {
+  try { sessionStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })) } catch {}
+}
+function clearCache(key) {
+  try { sessionStorage.removeItem(key) } catch {}
+}
+
 function normalizeNonNegativeInt(value) {
   return Math.max(0, Math.floor(Number(value) || 0))
 }
@@ -265,10 +282,16 @@ function App() {
   }, [theme])
 
   useEffect(() => {
+    const cached = readCache('manual-base-data')
+    if (cached) {
+      setManualBaseData({ discharge: cached.discharge || {}, outpatient: cached.outpatient || {}, er: cached.er || {} })
+      return
+    }
     api.get(`${API_BASE}/api/settings/manual-base-data`)
       .then((res) => {
         const data = res.data
         if (data && typeof data === 'object') {
+          writeCache('manual-base-data', data)
           setManualBaseData({
             discharge: data.discharge || {},
             outpatient: data.outpatient || {},
@@ -283,10 +306,17 @@ function App() {
   const saveScoreTimerRef = useRef(null)
 
   useEffect(() => {
+    const cached = readCache('settings-scores')
+    if (cached) {
+      if (cached.metricSyncByMonth) setMetricSyncByMonth(normalizeMetricSyncState(cached.metricSyncByMonth))
+      scoreLoadedRef.current = true
+      return
+    }
     api.get(`${API_BASE}/api/settings/scores`)
       .then((res) => {
         const data = res.data
         if (!data || typeof data !== 'object') return
+        writeCache('settings-scores', data)
         if (data.metricSyncByMonth) setMetricSyncByMonth(normalizeMetricSyncState(data.metricSyncByMonth))
       })
       .catch(() => {})
@@ -297,6 +327,7 @@ function App() {
     if (!scoreLoadedRef.current) return
     clearTimeout(saveScoreTimerRef.current)
     saveScoreTimerRef.current = setTimeout(() => {
+      clearCache('settings-scores')
       api.put(`${API_BASE}/api/settings/scores`, { metricSyncByMonth }).catch(() => {})
     }, 800)
   }, [metricSyncByMonth])
@@ -774,9 +805,18 @@ function App() {
     })
   }
 
-  async function fetchDashboard() {
+  async function fetchDashboard(force = false) {
+    if (!force) {
+      const cached = readCache('dashboard')
+      if (cached) {
+        setReportsByMonth(cached.reports || {})
+        setRecentLogs(cached.recentLogs || [])
+        return
+      }
+    }
     const monthKeys = MONTHS.join(',')
     const res = await api.get(`${API_BASE}/api/dashboard`, { params: { months: monthKeys } })
+    writeCache('dashboard', res.data)
     setReportsByMonth(res.data.reports || {})
     setRecentLogs(res.data.recentLogs || [])
   }
@@ -894,7 +934,8 @@ function App() {
       }
       setUploadMessage('데이터 불러오는 중...')
       setMessage(`Upload completed. Success: ${totalSuccess}, Failed: ${totalFail}`)
-      await fetchDashboard()
+      clearCache('dashboard')
+      await fetchDashboard(true)
       if (fileLogModalOpen) {
         await fetchFileLogsPage(fileLogPage)
       }
@@ -1073,7 +1114,8 @@ function App() {
     if (!window.confirm(`Delete ${date}?`)) return
     try {
       await api.delete(`${API_BASE}/api/logs/${date}`)
-      await fetchDashboard()
+      clearCache('dashboard')
+      await fetchDashboard(true)
       if (fileLogModalOpen) {
         await fetchFileLogsPage(fileLogPage)
       }
@@ -1292,6 +1334,7 @@ function App() {
     setManualBaseData(next)
     setMetricsEditMode(false)
     setMetricsDraft({})
+    clearCache('manual-base-data')
     api.put(`${API_BASE}/api/settings/manual-base-data`, next).catch((err) => {
       console.error('Failed to save manual base data', err)
     })
