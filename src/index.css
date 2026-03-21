@@ -136,6 +136,10 @@
   padding: 0;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Inter', 'Noto Sans KR', sans-serif;
   background-color: var(--bg-page);
@@ -143,6 +147,8 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 .container {
@@ -1884,7 +1890,7 @@ tbody tr:hover {
   }
 
   .resident-config-inputs {
-    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
   }
 
   .resident-config-title,
@@ -2278,5 +2284,38 @@ tbody tr:hover {
   .surgery-score-table td {
     font-size: 0.8rem;
     padding: 0.5rem 0.35rem;
+  }
+
+  /* range-controls 가로 넘침 방지 */
+  .range-controls {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .range-control {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .range-control select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* 헤더 전체 너비 제한 */
+  header {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  /* resident-config 년차 입력 넘침 방지 */
+  .resident-year-item input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* recharts wrapper가 부모를 초과하지 않도록 */
+  .recharts-wrapper {
+    max-width: 100%;
   }
 }
