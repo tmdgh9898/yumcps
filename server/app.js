@@ -24,6 +24,7 @@ async function createApp() {
     cors({
       origin(origin, callback) {
         if (!origin) return callback(null, true);
+        if (allowedOrigins.includes('*')) return callback(null, true);
         if (allowedOrigins.includes(origin)) return callback(null, true);
         return callback(new Error('Not allowed by CORS'));
       },
