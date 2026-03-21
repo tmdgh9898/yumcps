@@ -948,17 +948,24 @@ function App() {
     if (!files.length) return
     if (uploading) return
 
-    const formData = new FormData()
-    files.forEach((file) => formData.append('files', file))
     setRecentUploadedNames(files.map((file) => file.name))
-
     setUploading(true)
     setMessage('')
+
+    const BATCH_SIZE = 5
+    let totalSuccess = 0
+    let totalFail = 0
+
     try {
-      const res = await api.post(`${API_BASE}/api/upload-multiple`, formData)
-      const successCount = res?.data?.successCount ?? 0
-      const failCount = res?.data?.failCount ?? 0
-      setMessage(`Upload completed. Success: ${successCount}, Failed: ${failCount}`)
+      for (let i = 0; i < files.length; i += BATCH_SIZE) {
+        const batch = files.slice(i, i + BATCH_SIZE)
+        const formData = new FormData()
+        batch.forEach((file) => formData.append('files', file))
+        const res = await api.post(`${API_BASE}/api/upload-multiple`, formData)
+        totalSuccess += res?.data?.successCount ?? 0
+        totalFail += res?.data?.failCount ?? 0
+      }
+      setMessage(`Upload completed. Success: ${totalSuccess}, Failed: ${totalFail}`)
       await fetchDashboard()
       if (fileLogModalOpen) {
         await fetchFileLogsPage(fileLogPage)
