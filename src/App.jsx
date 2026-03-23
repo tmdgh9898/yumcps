@@ -243,6 +243,7 @@ function App() {
   const [message, setMessage] = useState('')
   const [uploading, setUploading] = useState(false)
   const [dashboardLoading, setDashboardLoading] = useState(true)
+  const [dashboardLoadError, setDashboardLoadError] = useState('')
   const [uploadMessage, setUploadMessage] = useState('')
   const [detailModal, setDetailModal] = useState(DETAIL_MODAL_INITIAL_STATE)
   const [savingCaseChecks, setSavingCaseChecks] = useState({})
@@ -816,9 +817,11 @@ function App() {
     }
     const monthKeys = MONTHS.join(',')
     const res = await api.get(`${API_BASE}/api/dashboard`, { params: { months: monthKeys } })
-    writeCache('dashboard', res.data)
-    setReportsByMonth(res.data.reports || {})
-    setRecentLogs(res.data.recentLogs || [])
+    const payload = res.data
+    if (!payload || typeof payload !== 'object') throw new Error('서버 응답이 올바르지 않습니다.')
+    writeCache('dashboard', payload)
+    setReportsByMonth(payload.reports || {})
+    setRecentLogs(payload.recentLogs || [])
   }
 
   async function fetchFileLogsPage(page) {
@@ -854,9 +857,23 @@ function App() {
   }
 
   useEffect(() => {
-    fetchDashboard()
-      .catch((err) => setMessage(err.message))
-      .finally(() => setDashboardLoading(false))
+    const MAX_RETRIES = 2
+    async function loadWithRetry() {
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          await fetchDashboard()
+          setDashboardLoadError('')
+          return
+        } catch (err) {
+          if (attempt < MAX_RETRIES) {
+            await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)))
+          } else {
+            setDashboardLoadError(err.message || '데이터를 불러오지 못했습니다.')
+          }
+        }
+      }
+    }
+    loadWithRetry().finally(() => setDashboardLoading(false))
   }, [])
 
   useEffect(() => {
@@ -1404,6 +1421,40 @@ function App() {
               ? (uploadMessage || '파일 업로드 및 파싱 중...')
               : '데이터 불러오는 중...'}
           </p>
+        </div>
+      )}
+      {dashboardLoadError && !dashboardLoading && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9998,
+          background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: '16px',
+        }}>
+          <p style={{ color: '#fff', fontSize: '16px', fontWeight: 500, margin: 0 }}>
+            데이터를 불러오지 못했습니다.
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', margin: 0 }}>
+            {dashboardLoadError}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setDashboardLoadError('')
+              setDashboardLoading(true)
+              clearCache('dashboard')
+              fetchDashboard(true)
+                .then(() => setDashboardLoadError(''))
+                .catch((err) => setDashboardLoadError(err.message || '데이터를 불러오지 못했습니다.'))
+                .finally(() => setDashboardLoading(false))
+            }}
+            style={{
+              padding: '8px 20px', borderRadius: '8px', border: 'none',
+              background: '#fff', color: '#333', fontWeight: 600,
+              fontSize: '14px', cursor: 'pointer',
+            }}
+          >
+            다시 시도
+          </button>
         </div>
       )}
       <header>
